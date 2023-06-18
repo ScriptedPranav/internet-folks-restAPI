@@ -186,73 +186,80 @@ router.post("/signin", async (req: Request, res: Response) => {
 });
 
 // Get Me endpoint
-router.get('/me', async (req: Request, res: Response) => {
-    try {
-      // Check if the access token is present
-      const accessToken = req.headers.authorization?.split(' ')[1];
-  
-      if (!accessToken) {
-        return res.status(401).json({
-          status: false,
-          errors: [{ message: 'You need to sign in to proceed.', code: 'NOT_SIGNEDIN' }],
-        });
-      }
-  
-      // Get the user ID from the access token
-      const userId = getUserIdFromAccessToken(accessToken);
-  
-      if (!userId) {
-        return res.status(401).json({
-          status: false,
-          errors: [{ message: 'Invalid access token', code: 'INVALID_TOKEN' }],
-        });
-      }
-  
-      // Retrieve the user details from the database
-      const user = await db.user.findUnique({
-        where: {
-          id: userId,
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          created_at: true,
-        },
-      });
-  
-      // Check if the user exists
-      if (!user) {
-        return res.status(404).json({
-          status: false,
-          errors: [{ message: 'User not found', code: 'USER_NOT_FOUND' }],
-        });
-      }
-  
-      // Return the user details
-      return res.status(200).json({
-        status: true,
-        content: {
-          data: user,
-        },
-      });
-    } catch (error) {
-      console.error('Error in Get Me:', error);
-      return res.status(500).json({
+router.get("/me", async (req: Request, res: Response) => {
+  try {
+    // Check if the access token is present
+    const accessToken = req.headers.authorization?.split(" ")[1];
+
+    if (!accessToken) {
+      return res.status(401).json({
         status: false,
-        errors: [{ message: 'Internal Server Error', code: 'INTERNAL_SERVER_ERROR' }],
+        errors: [
+          { message: "You need to sign in to proceed.", code: "NOT_SIGNEDIN" },
+        ],
       });
     }
-  });
-  
-  // Function to extract user ID from the access token
-  function getUserIdFromAccessToken(accessToken: string): string | null {
-    try {
-      const decodedToken: any = jwt.verify(accessToken, process.env.JWT_SECRET as string);
-      return decodedToken.id
-    } catch (error) {
-      return null;
+
+    // Get the user ID from the access token
+    const userId = getUserIdFromAccessToken(accessToken);
+
+    if (!userId) {
+      return res.status(401).json({
+        status: false,
+        errors: [{ message: "Invalid access token", code: "INVALID_TOKEN" }],
+      });
     }
+
+    // Retrieve the user details from the database
+    const user = await db.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        created_at: true,
+      },
+    });
+
+    // Check if the user exists
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        errors: [{ message: "User not found", code: "USER_NOT_FOUND" }],
+      });
+    }
+
+    // Return the user details
+    return res.status(200).json({
+      status: true,
+      content: {
+        data: user,
+      },
+    });
+  } catch (error) {
+    console.error("Error in Get Me:", error);
+    return res.status(500).json({
+      status: false,
+      errors: [
+        { message: "Internal Server Error", code: "INTERNAL_SERVER_ERROR" },
+      ],
+    });
   }
+});
+
+// Function to extract user ID from the access token
+function getUserIdFromAccessToken(accessToken: string): string | null {
+  try {
+    const decodedToken: any = jwt.verify(
+      accessToken,
+      process.env.JWT_SECRET as string
+    );
+    return decodedToken.id;
+  } catch (error) {
+    return null;
+  }
+}
 
 export default router;
