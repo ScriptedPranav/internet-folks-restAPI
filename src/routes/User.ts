@@ -249,7 +249,7 @@ router.get('/me', async (req: Request, res: Response) => {
   function getUserIdFromAccessToken(accessToken: string): string | null {
     try {
       const decodedToken: any = jwt.verify(accessToken, process.env.JWT_SECRET as string);
-      return decodedToken.userId;
+      return decodedToken.id
     } catch (error) {
       return null;
     }
