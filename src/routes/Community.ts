@@ -270,6 +270,67 @@ router.get("/me/owner", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/me/member", async (req: Request, res: Response) => {
+  try {
+    // Get the user ID from the access token
+    const accessToken = req.headers.authorization?.split(" ")[1] || "";
+    const userId = getUserIdFromAccessToken(accessToken);
+
+    if (!userId) {
+      return res.status(401).json({
+        status: false,
+        errors: [
+          { message: "You need to sign in to proceed.", code: "NOT_SIGNEDIN" },
+        ],
+      });
+    }
+
+    // Get the communities where the user is the owner or a member
+    const communities = await db.community.findMany({
+      where: {
+        OR: [{ owner: userId }, { members: { some: { user: userId } } }],
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        ownerId: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    // Prepare the response object
+    const response = {
+      status: true,
+      content: {
+        meta: {
+          total: communities.length,
+          pages: 1,
+          page: 1,
+        },
+        data: communities,
+      },
+    };
+
+    // Return the success response
+    return res.status(200).json(response);
+  } catch (error) {
+    // Return a generic error response for any errors
+    return res.status(500).json({
+      status: false,
+      errors: [
+        { message: "Internal Server Error", code: "INTERNAL_SERVER_ERROR" },
+      ],
+    });
+  }
+});
+
 // Function to generate a slug from the name
 function generateSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
