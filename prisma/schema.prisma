@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String      @id @default(uuid())
+  name       String?
+  email      String      @unique
+  password   String
+  created_at DateTime    @default(now())
+  member     Member[]
+  Community  Community[]
+}
+
+model Community {
+  id         String   @id @default(uuid())
+  name       String
+  slug       String   @unique
+  owner      String
+  ownerId    User     @relation(fields: [owner], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  members    Member[]
+}
+
+model Role {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  members    Member[]
+}
+
+model Member {
+  id         String   @id @default(uuid())
+  community  String
+  user       String
+  role       String
+  created_at DateTime @default(now())
+
+  community_fk Community @relation(fields: [community], references: [id])
+  user_fk      User      @relation(fields: [user], references: [id])
+  role_fk      Role      @relation(fields: [role], references: [id])
+}
