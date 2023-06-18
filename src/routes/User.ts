@@ -14,6 +14,12 @@ const signUpSchema = z.object({
   password: z.string().min(6),
 });
 
+//Define the request body schema
+const signInSchema = z.object({
+    email: z.string().email(),
+    password: z.string().min(6),
+  });
+
 // Sign up endpoint
 router.post('/signup', async (req: Request, res: Response) => {
   try {
@@ -98,11 +104,79 @@ router.post('/signup', async (req: Request, res: Response) => {
 
 // Generate access token using JWT
 function generateAccessToken(userId: string): string {
-  const secretKey = '1x234'; // Replace with your own secret key
+  const secretKey = process.env.JWT_SECRET as string; // Replace with your own secret key
   const tokenPayload = { userId };
   const options = { expiresIn: '1h' }; // Token expires in 1 hour
 
   return jwt.sign(tokenPayload, secretKey, options);
 }
+
+// Sign in endpoint
+router.post('/signin', async (req: Request, res: Response) => {
+    try {
+      // Validate the request body against the schema
+      const validatedData = signInSchema.parse(req.body);
+  
+      // Retrieve the user from the database by email
+      const user = await db.user.findUnique({
+        where: { email: validatedData.email },
+      });
+  
+      // Check if the user exists and verify the password
+      if (!user || !bcrypt.compareSync(validatedData.password, user.password)) {
+        return res.status(401).json({
+          status: false,
+          errors: [
+            {
+              param: 'password',
+              message: 'The credentials you provided are invalid.',
+              code: 'INVALID_CREDENTIALS',
+            },
+          ],
+        });
+      }
+  
+      // Generate access token
+      const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET as string, {
+        expiresIn: '1h',
+      });
+  
+      // Remove the password field from the user object
+      const { password, ...userData } = user;
+  
+      // Return the success response with access token
+      res.status(200).json({
+        status: true,
+        content: {
+          data: userData,
+          meta: {
+            access_token: accessToken,
+          },
+        },
+      });
+    } catch (error) {
+      // Handle the validation error and return the error response
+      if (error instanceof z.ZodError) {
+        const errors = error.errors.map((err) => ({
+          param: err.path[0],
+          message: err.message,
+          code: 'INVALID_INPUT',
+        }));
+  
+        return res.status(400).json({
+          status: false,
+          errors,
+        });
+      }
+  
+      // Return a generic error response for any other errors
+      return res.status(500).json({
+        status: false,
+        errors: [{ message: 'Internal Server Error', code: 'INTERNAL_SERVER_ERROR' }],
+      });
+    }
+  });
+
+
 
 export default router;
