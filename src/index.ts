@@ -5,6 +5,7 @@ import * as dotenv from "dotenv";
 import roleRoute from "./routes/Role";
 import userRoute from './routes/User';
 import communityRoute from './routes/Community';
+import memberRoute from './routes/Member';
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use(express.json())
 app.use("/v1", roleRoute);
 app.use("/v1/auth",userRoute)
 app.use("/v1/community",communityRoute)
+app.use("/v1/member",memberRoute)
 
 
 app.listen(PORT, () => {
