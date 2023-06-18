@@ -135,6 +135,141 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
+// GET /v1/community/:id/members
+router.get("/:id/members", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Retrieve the page number from the query parameters or default to 1
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = 10;
+    const skip = (page - 1) * pageSize;
+
+    // Get the total count of members in the community
+    const totalMembers = await db.member.count({
+      where: { community: id },
+    });
+
+    // Calculate the total number of pages
+    const totalPages = Math.ceil(totalMembers / pageSize);
+
+    // Fetch the members of the community with pagination
+    const members = await db.member.findMany({
+      where: { community: id },
+      select: {
+        id: true,
+        community: true,
+        user_fk: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        role: true,
+        created_at: true,
+      },
+      skip,
+      take: pageSize,
+    });
+
+    // Extract the unique role IDs from the members
+    const roleIds = Array.from(new Set(members.map((member) => member.role)));
+
+    // Fetch the roles using the extracted role IDs
+    const roles = await db.role.findMany({
+      where: { id: { in: roleIds } },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    // Combine the member and role data to create the desired response structure
+    const responseData = members.map((member) => ({
+      id: member.id,
+      community: member.community,
+      user: member.user_fk,
+      role: roles.find((role) => role.id === member.role),
+      created_at: member.created_at,
+    }));
+
+    // Return the success response
+    return res.status(200).json({
+      status: true,
+      content: {
+        meta: {
+          total: totalMembers,
+          pages: totalPages,
+          page: page,
+        },
+        data: responseData,
+      },
+    });
+  } catch (error) {
+    // Return a generic error response for any errors
+    return res.status(500).json({
+      status: false,
+      errors: [
+        { message: "Internal Server Error", code: "INTERNAL_SERVER_ERROR" },
+      ],
+    });
+  }
+});
+
+// GET /v1/community/me/owner
+router.get("/me/owner", async (req: Request, res: Response) => {
+  try {
+    // Get the owner ID from the access token
+    const accessToken = req.headers.authorization?.split(" ")[1] || "";
+    const ownerId = getUserIdFromAccessToken(accessToken);
+
+    if (!ownerId) {
+      return res.status(401).json({
+        status: false,
+        errors: [
+          { message: "You need to sign in to proceed.", code: "NOT_SIGNEDIN" },
+        ],
+      });
+    }
+
+    // Get the communities owned by the user
+    const communities = await db.community.findMany({
+      where: {
+        owner: ownerId,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        owner: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    // Return the success response
+    return res.status(200).json({
+      status: true,
+      content: {
+        meta: {
+          total: communities.length,
+          pages: 1,
+          page: 1,
+        },
+        data: communities,
+      },
+    });
+  } catch (error) {
+    // Return a generic error response for any errors
+    return res.status(500).json({
+      status: false,
+      errors: [
+        { message: "Internal Server Error", code: "INTERNAL_SERVER_ERROR" },
+      ],
+    });
+  }
+});
+
 // Function to generate a slug from the name
 function generateSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
